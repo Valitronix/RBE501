@@ -8,6 +8,13 @@ import helper
 import numpy as np
 from operator import sub
 import time
+import rospy
+from sensor_msgs.msg import JointState
+from geomagic_control.msg import OmniFeedback
+import tf
+from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
+from std_msgs.msg import Header
+import signal
 
 
 class Game:
@@ -16,36 +23,51 @@ class Game:
 
         self.goal_rec = None
         self.start_rec = None
+        self.push_boundary = 60
+        self.pull_boundary = 120
         self.player = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.PLAYERSIZE_X, helper.PLAYERSIZE_Y) )
         self.swarmbot = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.BLOCKSIZE_X, helper.BLOCKSIZE_Y) )
         self.display_surf = pygame.display.set_mode((helper.windowWidth, helper.windowHeight))
         self.ee_state = np.asarray([[0], [0], [0], [0], [0], [0]])
         self.swarm_state = np.asarray([[300],[300],[0],[0],[0],[0]])
         self.swarm_mass = 5
+        self.output = OmniFeedback()
         self.F = [0,0,0]
         self.running = True
         self.am_i_at_goal = False
         self.am_i_at_start = False
         self.time0 = time.time()
-        self.gains = {'K_input': 1,
-                      'V_input': 1,
-                      'K_output': 1,
-                      'V_output': 1,
+        self.gains = {'K_pull': 0.4,
+                      'V_pull': 0.1,
+                      'K_output': 0.05,
+                      'V_output': 0.1,
+                      'K_push': 1,
+                      'V_push': 1,
                       }
+        rospy.Subscriber("/Geomagic/end_effector_pose",JointState,self.get_input)
+        self.pub = rospy.Publisher("/Geomagic/force_feedback",OmniFeedback,queue_size=1)
 
         pygame.display.set_caption('Use the cursor to move the swarm bot')
-        self.csv = open("/home/cibr-strokerehab/Documents/JointStatesRecording.csv", "w")
+        # self.csv = open("/home/cibr-strokerehab/Documents/JointStatesRecording.csv", "w")
 
         pygame.init()
         pygame.font.init()
 
-    def get_input(self):
-        pygame.event.pump()
-        (in_x, in_y) = pygame.mouse.get_pos()
+    def get_input(self, js):
+        #pygame.event.pump()
+        #(in_x, in_y) = pygame.mouse.get_pos()
         ## AVQuestion can we get velocity from the end effector, too?
-        self.ee_state = [[in_x], [in_y], [0], [0], [0], [0]]
-        (bt1, bt2, bt3) = pygame.mouse.get_pressed()
-        self.running = not bt1
+        # self.ee_state = [[in_x], [in_y], [0], [0], [0], [0]]
+        #(bt1, bt2, bt3) = pygame.mouse.get_pressed()
+        #self.running = not bt1
+        if not rospy.is_shutdown():
+            self.ee_state[0] = self.remap(js.position[0], -150, 150, 0, 900)
+            self.ee_state[1] = self.remap(js.position[1], 90, -90, 0, 540)
+            self.ee_state[2] = 0
+            print(js.position)
+    
+    def remap(self, x, in_min, in_max, out_min, out_max):
+        return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
 
     def update_player(self):
         """
@@ -80,9 +102,21 @@ class Game:
         :return:
         """
         e = np.subtract(self.ee_state[0:3], self.swarm_state[0:3])
+        d = np.linalg.norm(e)
+        # print(self.swarm_state[0:3])
         ed = np.subtract(self.ee_state[3:], self.swarm_state[3:])
-        F = self.gains['K_input'] * e + self.gains['V_input'] * ed
+        if d < self.pull_boundary:
+            F = self.gains['K_pull'] * e + self.gains['V_pull'] * ed
+        else:
+            F = [0,0,0]
         self.F = np.round(F, 2)
+        
+    def output_force(self):
+        self.output.force.x = max(min(-self.F[0] * self.gains['K_output'], 3), -3)
+        self.output.force.y = max(min(-self.F[1] * self.gains['K_output'], 3), -3)
+        self.output.force.z = 0
+        self.output.lock = [False,False,False]
+        self.pub.publish(self.output)
 
     def update_force_push(self):
         """
@@ -92,8 +126,8 @@ class Game:
         e = np.subtract(self.ee_state[0:3], self.swarm_state[0:3])
         d = np.linalg.norm(e)
         ed = np.subtract(self.ee_state[3:], self.swarm_state[3:])
-        if d < 60:
-            F = self.gains['K_input'] * (60-d)* -e/d + self.gains['V_input'] * ed
+        if d < self.push_boundary:
+            F = self.gains['K_push'] * (self.push_boundary-d)* -e/d + self.gains['V_push'] * ed
         else:
             F = [0,0,0]
         self.F = np.round(F, 2)
@@ -211,10 +245,11 @@ class Game:
 
 
 if __name__ == "__main__":
-
+    rospy.init_node("one_swarm_controll")
     game = Game()
-    while game.running:
-        game.get_input()
-        game.update_force_push()
+    while not rospy.is_shutdown():
+        game.update_force_pull()
         game.update_player()
         game.update_GUI()
+        game.output_force()
+        # rospy.spin()
