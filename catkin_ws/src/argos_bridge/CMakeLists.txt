@@ -46,14 +46,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  Puck.msg
-  PuckList.msg
-  Proximity.msg
-  ProximityList.msg
   Haptic.msg
   HapticList.msg
   State.msg
-  StateList.msg
 )
 
 ## Generate services in the 'srv' folder

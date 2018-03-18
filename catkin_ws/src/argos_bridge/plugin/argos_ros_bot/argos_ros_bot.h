@@ -11,9 +11,7 @@
 
 #include <argos3/core/control_interface/ci_controller.h>
 #include <argos3/plugins/robots/generic/control_interface/ci_differential_steering_actuator.h>
-#include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_proximity_sensor.h>
-#include <argos3/plugins/robots/generic/control_interface/ci_colored_blob_omnidirectional_camera_sensor.h>
-//#include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_gripper_actuator.h>
+#include <argos3/plugins/robots/generic/control_interface/ci_positioning_sensor.h>
 
 #include <ros/ros.h>
 #include <string>
@@ -25,6 +23,28 @@ using namespace argos;
 class CArgosRosBot : public CCI_Controller {
 
 public:
+  struct SWheelTurningParams {
+   /*
+    * The turning mechanism.
+    * The robot can be in three different turning states.
+    */
+   enum ETurningMechanism
+   {
+      NO_TURN = 0, // go straight
+      SOFT_TURN,   // both wheels are turning forwards, but at different speeds
+      HARD_TURN    // wheels are turning with opposite speeds
+   } TurningMechanism;
+   /*
+    * Angular thresholds to change turning state.
+    */
+   CRadians HardTurnOnAngleThreshold;
+   CRadians SoftTurnOnAngleThreshold;
+   CRadians NoTurnAngleThreshold;
+   /* Maximum wheel speed */
+   Real MaxSpeed;
+
+   void Init(TConfigurationNode& t_tree);
+ };
 
   CArgosRosBot();
   virtual ~CArgosRosBot() {}
@@ -61,21 +81,17 @@ public:
   virtual void Destroy() {}
 
   /*
-   * The callback method for getting new commanded speed on the cmd_vel topic.
-   */
-  void cmdVelCallback(const geometry_msgs::Twist& twist);
-
-  /*
    * The callback method for getting haptic force vector on the haptic topic.
    */
   void hapticCallback(const argos_bridge::Haptic& haptic);
 
+
+  void SetWheelSpeedsFromVector(const CVector2& c_heading);
+
 private:
 
   CCI_DifferentialSteeringActuator* m_pcWheels;
-  CCI_FootBotProximitySensor* m_pcProximity;
-  CCI_ColoredBlobOmnidirectionalCameraSensor* m_pcOmniCam;
-//  CCI_FootBotGripperActuator* m_pcGripper;
+  CCI_PositioningSensor* m_pcState;
 
   // The following constant values were copied from the argos source tree from
   // the file src/plugins/robots/foot-bot/simulator/footbot_entity.cpp
@@ -89,25 +105,7 @@ private:
    * <controllers><argos_ros_bot_controller> section.
    */
 
-  // The number of time steps from the time step of the last callback
-  // after which leftSpeed and rightSpeed will be set to zero.  Useful to
-  // shutdown the robot after the controlling code on the ROS side has quit.
-  int stopWithoutSubscriberCount;
-
-  // The number of time steps since the last callback.
-  int stepsSinceCallback;
-
-  // Most recent left and right wheel speeds, converted from the ROS twist
-  // message.
-  Real leftSpeed, rightSpeed;
-
   Real xForce, yForce, zForce;
-
-  // Puck list publisher
-  ros::Publisher puckListPub;
-
-  // Proximity sensor publisher
-  ros::Publisher proximityPub;
 
   // haptic sensor subscriber
   ros::Subscriber hapticSub;
@@ -115,8 +113,8 @@ private:
   // state publisher
   ros::Publisher statePub;
 
-  // Subscriber for cmd_vel (Twist message) topic.
-  ros::Subscriber cmdVelSub;
+  /* The turning parameters. */
+  SWheelTurningParams m_sWheelTurningParams;
 
 public:
   // We need only a single ROS node, although there are individual publishers
