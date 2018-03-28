@@ -47,7 +47,6 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   Haptic.msg
-  HapticList.msg
   State.msg
 )
 

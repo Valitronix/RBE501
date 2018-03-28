@@ -1,6 +1,5 @@
 // ROS Stuff #include "ros/ros.h"
 #include "argos_bridge/Haptic.h"
-#include "argos_bridge/HapticList.h"
 #include "argos_bridge/State.h"
 
 /* Include the controller definition */
@@ -33,7 +32,10 @@ ros::NodeHandle* CArgosRosBot::nodeHandle = initROS();
 /****************************************/
 
 CArgosRosBot::CArgosRosBot() :
-  m_pcWheels(NULL){}
+  m_pcWheels(NULL),
+  m_pcState(NULL)
+{
+}
 
 void CArgosRosBot::Init(TConfigurationNode& t_node) {
 
