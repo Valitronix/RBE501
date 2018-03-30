@@ -11,8 +11,8 @@ from operator import sub
 import time
 import rospy
 from sensor_msgs.msg import JointState
+from geomagic_control.msg import OmniFeedback, PhantomButtonEvent
 from argos_bridge.msg import Haptic
-
 from argos_bridge.msg import State
 import tf
 import signal
@@ -20,10 +20,11 @@ import signal
 
 class Game:
 
-    def __init__(self, maze_name="maze1"):
+    def __init__(self):
 
         self.goal_rec = None
         self.start_rec = None
+        self.action_boundary = 100
         self.player = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.PLAYERSIZE_X, helper.PLAYERSIZE_Y) )
         self.swarmbot = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.BLOCKSIZE_X, helper.BLOCKSIZE_Y) )
         self.display_surf = pygame.display.set_mode((helper.windowWidth, helper.windowHeight))
@@ -32,26 +33,32 @@ class Game:
         self.swarm_mass = 5
         self.swarm_heading = 0
         self.F = [0,0,0]
+        self.haptic_output = OmniFeedback()
+        self.swarm_output = Haptic()
         self.running = True
         self.am_i_at_goal = False
         self.am_i_at_start = False
         self.time0 = time.time()
         self.gains = {'K_input': 1,
-                      'V_input': 1,
-                      'K_output': 1,
-                      'V_output': 1,
+                      'V_input': 0,
+                      'K_output': 0.05,
                       }
 
         pygame.display.set_caption('Use the cursor to move the swarm bot')
         #self.csv = open("/home/cibr-strokerehab/Documents/JointStatesRecording.csv", "w")
 
+        rospy.init_node("python_controller")
         rospy.Subscriber("/bot0/state", State, self.update_from_bot)
-        self.pub = rospy.Publisher("/bot0/haptic", Haptic, queue_size=1)
+        rospy.Subscriber("/Geomagic/end_effector_pose", JointState, self.get_input_haptic)
+        rospy.Subscriber("/Geomagic/button", PhantomButtonEvent, self.button_callback)
+        self.one_bot_pub = rospy.Publisher("/bot0/haptic", Haptic, queue_size=1)
+        self.haptic_pub = rospy.Publisher("/Geomagic/force_feedback", OmniFeedback, queue_size=1)
 
         pygame.init()
         pygame.font.init()
 
-    def get_input(self):
+    def get_input_mouse(self):
+        # Gets input from mouse
         pygame.event.pump()
         (in_x, in_y) = pygame.mouse.get_pos()
         ## AVQuestion can we get velocity from the end effector, too?
@@ -61,7 +68,22 @@ class Game:
         self.running = not bt1
 
 
+    def get_input_haptic(self, js):
+        if not rospy.is_shutdown():
+            self.ee_state[0] = self.remap(js.position[0], -150, 150, 0, helper.windowWidth)
+            self.ee_state[1] = self.remap(js.position[1], 90, -90, 0, helper.windowHeight)
+            self.ee_state[2] = 0
+
+    def button_callback(self, button):
+        pass
+
+
+    def remap(self, x, in_min, in_max, out_min, out_max):
+        return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+
+
     def update_player(self):
+        #For when the swarm simulation is not running
         """
         call_back when the player's location has changed, based on end-effector movement. The player's location in the
         task space, where (0,0) is in the middle of the task space, the x-axis is positive to the right, and the y-axis
@@ -89,20 +111,15 @@ class Game:
         self.time0 = time.clock()
 
     def update_from_bot(self, state):
-        self.swarm_state = np.asarry([[state.x], [state.y], [state.z], [state.dot_x], [state.dot_y], [state.dot_z]])
+        #Gets current position from swarm robot
+        x_virtual = self.remap(state.x, -2.5, 2.5, 0, helper.windowWidth)
+        x_dot_virtual = self.remap(state.dot_x, -2.5, 2.5, 0, helper.windowWidth)
+        y_virtual = self.remap(state.y, 2.5, -2.5, 0, helper.windowHeight)
+        y_dot_virtual = self.remap(state.dot_y, 2.5, -2.5, 0, helper.windowHeight)
+        self.swarm_state = np.asarray([[x_virtual], [y_virtual], [0], [x_dot_virtual], [y_dot_virtual], [0]])
         self.player.center = (self.ee_state[0][0], self.ee_state[1][0])
         self.swarmbot.center = (self.swarm_state[0][0], self.swarm_state[1][0])
-        self.swarm_heading = state.yaw
-
-    def update_force_pull(self):
-        """
-        This function runs separately, in its own thread, until the calling thread is killed.
-        :return:
-        """
-        e = np.subtract(self.ee_state[0:3], self.swarm_state[0:3])
-        ed = np.subtract(self.ee_state[3:], self.swarm_state[3:])
-        F = self.gains['K_input'] * e + self.gains['V_input'] * ed
-        self.F = np.round(F, 2)
+        self.swarm_heading = -state.yaw
 
     def update_force_push(self):
         """
@@ -112,23 +129,33 @@ class Game:
         e = np.subtract(self.ee_state[0:3], self.swarm_state[0:3])
         d = np.linalg.norm(e)
         ed = np.subtract(self.ee_state[3:], self.swarm_state[3:])
-        if d < 60:
+        if d < self.action_boundary:
             F = self.gains['K_input'] * (60-d)* -e/d + self.gains['V_input'] * ed
         else:
             F = [0,0,0]
         self.F = np.round(F, 2)
-        self.transform_force(self.F)
+        #print "force: ", self.F
+        self.swarm_force(np.asarray(self.F))
+        self.haptic_force(self.F)
 
-    def transform_force(self, F):
+    def swarm_force(self, F):
         R_mat = np.matrix([[cos(self.swarm_heading), sin(self.swarm_heading), 0],
                            [-sin(self.swarm_heading), cos(self.swarm_heading), 0],
                            [                       0,                       0, 1]])
-        print R_mat
-        force_vector = R_mat*[[F[0]], [F[1]], [F[2]]]
+
+        force_vector = R_mat*F.reshape(3,1)
         output_force = Haptic()
-        output_force.x_value = force_vector[0]
-        output_force.y_value = force_vector[1]
-        print output_force
+        output_force.x_value = force_vector[0,0]
+        output_force.y_value = -force_vector[1, 0]
+        #print "robot frame forces:", output_force
+        self.one_bot_pub.publish(output_force)
+
+    def haptic_force(self, F):
+        self.haptic_output.force.x = max(min(-F[0] * self.gains['K_output'], 3), -3)
+        self.haptic_output.force.y = max(min(F[1] * self.gains['K_output'], 3), -3)
+        self.haptic_output.force.z = 0
+        self.haptic_output.lock = [False, False, False]
+        self.haptic_pub.publish(self.haptic_output)
 
     def update_GUI(self):
         """
@@ -243,8 +270,8 @@ class Game:
 
 if __name__ == "__main__":
     game = Game()
-    while game.running:
-        game.get_input()
+    while not rospy.is_shutdown():
+        #game.get_input()
         game.update_force_push()
         #game.update_player()
         game.update_GUI()
