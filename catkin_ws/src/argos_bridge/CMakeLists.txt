@@ -48,6 +48,7 @@ add_message_files(
   FILES
   Haptic.msg
   State.msg
+  Flocking.msg
 )
 
 ## Generate services in the 'srv' folder
