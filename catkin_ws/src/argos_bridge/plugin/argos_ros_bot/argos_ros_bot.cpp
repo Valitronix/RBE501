@@ -2,6 +2,7 @@
 #include "argos_bridge/Haptic.h"
 #include "argos_bridge/State.h"
 
+
 /* Include the controller definition */
 #include "argos_ros_bot.h"
 /* Function definitions for XML parsing */
@@ -72,9 +73,16 @@ void CArgosRosBot::ControlStep() {
   state.x = sStateReads.Position.GetX();
   state.y = sStateReads.Position.GetY();
   state.z = sStateReads.Position.GetZ();
-  state.dot_x = 0;
+  state.dot_x = sStateReads.Velocition;
   state.dot_y = 0;
   state.dot_z = 0;
+
+  Real siny = 2 * ((sStateReads.Orientation.GetW()*sStateReads.Orientation.GetZ()) +
+  (sStateReads.Orientation.GetX()*sStateReads.Orientation.GetY()));
+  Real cosy = 1 - (2 * ((sStateReads.Orientation.GetY()*sStateReads.Orientation.GetY()) +
+  (sStateReads.Orientation.GetZ()*sStateReads.Orientation.GetZ())));
+  CRadians yaw = ATan2(siny,cosy);
+  state.yaw = yaw.GetValue();
 
   statePub.publish(state);
   // cout << "Lening Li is awesome!!!!!"<<endl;

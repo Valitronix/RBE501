@@ -88,5 +88,11 @@
   <!-- ****************** -->
   <visualization>
     <qt-opengl lua_editor="false"/>
+      <camera>
+        <placement idx="1"
+                   position="0, -2.60355,1.06253"
+                   look_at="0, 0, 0.5"
+                   lens_focal_length="20" />
+      </camera>
   </visualization>
 </argos-configuration>

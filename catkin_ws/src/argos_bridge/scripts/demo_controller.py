@@ -21,10 +21,10 @@ class DemoController:
         self.statePub = rospy.Publisher('State', State, queue_size=1)
         rospy.Subscriber('Haptic', Haptic, self.haptic_callback)
 
-    def haptic_callback(self, puckList):
-        self.xForce = -haptic.force.x
-        self.yForce = -haptic.force.y
-        self.zForce = -haptic.force.z
+    def haptic_callback(self, haptic):
+        self.xForce = haptic.x_value
+        self.yForce = haptic.y_value
+        self.zForce = haptic.z_value
 
 if __name__ == '__main__':
     rospy.init_node("demo_controller")

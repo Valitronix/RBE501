@@ -6,8 +6,14 @@ from pygame.locals import *
 import math
 import helper
 import numpy as np
+from numpy import sin, cos
 from operator import sub
 import time
+import rospy
+from Haptic.msg import HapticMsg
+from State.msg import State
+import tf
+import signal
 
 
 class Game:
@@ -22,6 +28,7 @@ class Game:
         self.ee_state = np.asarray([[0], [0], [0], [0], [0], [0]])
         self.swarm_state = np.asarray([[300],[300],[0],[0],[0],[0]])
         self.swarm_mass = 5
+        self.swarm_heading = 0
         self.F = [0,0,0]
         self.running = True
         self.am_i_at_goal = False
@@ -35,6 +42,9 @@ class Game:
 
         pygame.display.set_caption('Use the cursor to move the swarm bot')
         self.csv = open("/home/cibr-strokerehab/Documents/JointStatesRecording.csv", "w")
+
+        rospy.Subscriber("/bot0/state", State, self.update_from_bot)
+        self.pub = rospy.Publisher("/bot0/haptic", Haptic, queue_size=1)
 
         pygame.init()
         pygame.font.init()
@@ -74,6 +84,12 @@ class Game:
         self.swarmbot.center = (self.swarm_state[0][0], self.swarm_state[1][0])
         self.time0 = time.clock()
 
+    def update_from_bot(self, state):
+        self.swarm_state = np.asarry([[state.x], [state.y], [state.z], [state.dot_x], [state.dot_y], [state.dot_z]])
+        self.player.center = (self.ee_state[0][0], self.ee_state[1][0])
+        self.swarmbot.center = (self.swarm_state[0][0], self.swarm_state[1][0])
+        self.swarm_heading = state.yaw
+
     def update_force_pull(self):
         """
         This function runs separately, in its own thread, until the calling thread is killed.
@@ -98,6 +114,16 @@ class Game:
             F = [0,0,0]
         self.F = np.round(F, 2)
 
+    def transform_force(self, F):
+        R_mat = np.matrix([[cos(self.swarm_heading), sin(self.swarm_heading), 0],
+                           [-sin(self.swarm_heading), cos(self.swarm_heading), 0],
+                           [                       0,                       0, 1]])
+
+        force_vector = R_mat*F
+        output_force = Haptic()
+        output_force.x_value = force_vector[0]
+        output_force.y_value = force_vector[1]
+        print output_force
 
     def update_GUI(self):
         """
@@ -211,10 +237,9 @@ class Game:
 
 
 if __name__ == "__main__":
-
     game = Game()
     while game.running:
         game.get_input()
         game.update_force_push()
-        game.update_player()
+        #game.update_player()
         game.update_GUI()
