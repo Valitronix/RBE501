@@ -21,7 +21,6 @@
         <leds                  implementation="default" medium="leds" />
       </actuators>
       <sensors>
-        <footbot_light                       implementation="rot_z_only" show_rays="true" />
         <colored_blob_omnidirectional_camera implementation="rot_z_only" medium="leds" show_rays="true" />
         <positioning implementation="default"/>
       </sensors>
@@ -29,7 +28,7 @@
         <wheel_turning hard_turn_angle_threshold="90"
                        soft_turn_angle_threshold="70"
                        no_turn_angle_threshold="10"
-                       max_speed="10" />
+                       max_speed="30" />
         <flocking target_distance="75"
                   gain="1000"
                   exponent="2" />
@@ -43,12 +42,12 @@
   <!-- *********************** -->
   <arena size="30,30,1" center="0,0,0.5">
 
-    <light id="light"
+    <!-- <light id="light"
            position="8.9,2.7,0.5"
            orientation="0,0,0"
            color="yellow"
            intensity="3.0"
-           medium="leds" />
+           medium="leds" /> -->
 
     <!--
         You can distribute entities randomly. Here, we distribute

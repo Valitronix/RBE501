@@ -19,7 +19,10 @@ ros::NodeHandle* initROS() {
   ros::init(argc, &argv, "argos_ros_bot");
   return new ros::NodeHandle();
 }
-
+//try: multiple nodeHandles  on same namspace (argos_ros_bot), or GetNodeHandle (if exists) for this node
+// and pass it around. ***Or nodelets for each bot!!***.
+// or maybe shared_ptr<ros::NodeHandle> nodeHandle under the class definiton
+// check the ~/.ros/log/latest for subscription, connection info etc.
 ros::NodeHandle* CFootBotFlocking::nodeHandle = initROS();
 
 
@@ -73,7 +76,6 @@ Real CFootBotFlocking::SFlockingInteractionParams::GeneralizedLennardJones(Real 
 
 CFootBotFlocking::CFootBotFlocking() :
    m_pcWheels(NULL),
-   m_pcLight(NULL),
    m_pcLEDs(NULL),
    m_pcCamera(NULL),
    m_pcState(NULL) {}
@@ -108,16 +110,15 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
     stringstream stateTopic;
     stateTopic << "/" << GetId() << "/State";
 
-    statePub = nodeHandle->advertise<State>(stateTopic.str(), 1000);
+    statePub = nodeHandle->advertise<State>(stateTopic.str(), 1);
 
     // Create the subscribers
     stringstream flockingTopic;
     flockingTopic << "/Flocking";
 
-    flockingSub = nodeHandle->subscribe(flockingTopic.str(), 1000, &CFootBotFlocking::flockingCallback, this);
+    flockingSub = nodeHandle->subscribe(flockingTopic.str(), 1, &CFootBotFlocking::flockingCallback, this);
 
    m_pcWheels = GetActuator<CCI_DifferentialSteeringActuator          >("differential_steering");
-   m_pcLight  = GetSensor  <CCI_FootBotLightSensor                    >("footbot_light");
    m_pcLEDs   = GetActuator<CCI_LEDsActuator                          >("leds");
    m_pcCamera = GetSensor  <CCI_ColoredBlobOmnidirectionalCameraSensor>("colored_blob_omnidirectional_camera");
    m_pcState = GetSensor<CCI_PositioningSensor>("positioning");
@@ -147,11 +148,11 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
 /****************************************/
 
 void CFootBotFlocking::flockingCallback(const argos_bridge::Flocking& flocking) {
-  cout << "flockCallback" << GetId() << endl;
+  cout << "flockCallback" <<GetId() << endl;
 
-      x = flocking.x;
-      y = flocking.y;
-      distance = flocking.distance;
+  x = flocking.x;
+  y = flocking.y;
+  distance = flocking.distance;
 
 }
 
@@ -167,9 +168,22 @@ void CFootBotFlocking::ControlStep() {
    state.dot_y = 0;
    state.dot_z = 0;
 
+   CQuaternion angle = sStateReads.Orientation;
+   CRadians 	c_z_angle;
+   CRadians	c_y_angle;
+   CRadians 	c_x_angle;
+   cout << x << endl;
+
+   angle.ToEulerAngles(c_z_angle, c_y_angle, c_x_angle);
+   x = 10;
+   y = 0;
+   CVector2 direction_1 = CVector2(x - state.x, y - state.y);
+   CVector2 direction_2 = CVector2(0, 1);
+   Real theta = acos((y-state.y) / (sqrt(pow(x - state.x,2) + pow(y - state.y,2))));
+
    statePub.publish(state);
 
-   SetWheelSpeedsFromVector(VectorToLight(1, PI/4) + FlockingVector());
+   SetWheelSpeedsFromVector(1, c_z_angle.GetValue() - theta) + FlockingVector());
 
 }
 
@@ -177,15 +191,10 @@ void CFootBotFlocking::ControlStep() {
 /****************************************/
 
 CVector2 CFootBotFlocking::VectorToLight(Real x, Real y) {
-   /* Get light readings */
-   const CCI_FootBotLightSensor::TReadings& tReadings = m_pcLight->GetReadings();
    /* Calculate a normalized vector that points to the closest light */
    CVector2 cAccum;
-   for(size_t i = 0; i < tReadings.size(); ++i) {
-      cAccum += CVector2(x, y);
-   }
    cAccum = CVector2(x, y);
-   cout << cAccum << endl;
+   // cout << cAccum << endl;
    if(cAccum.Length() > 0.0f) {
       /* Make the vector long as 1/4 of the max speed */
       cAccum.Normalize();

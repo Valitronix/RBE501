@@ -103,8 +103,6 @@ public:
       Real GeneralizedLennardJones(Real f_distance);
    };
 
-public:
-
    /* Class constructor. */
    CFootBotFlocking();
 
@@ -138,12 +136,11 @@ public:
     * the function could have been omitted. It's here just for completeness.
     */
    virtual void Destroy() {}
-
-    void flockingCallback(const argos_bridge::Flocking& flocking);
+   
+   void flockingCallback(const argos_bridge::Flocking& flocking);
 
     // flocking subscriber
     ros::Subscriber flockingSub;
-
     // state publisher
     ros::Publisher statePub;
 
@@ -172,8 +169,6 @@ private:
 
    /* Pointer to the differential steering actuator */
    CCI_DifferentialSteeringActuator* m_pcWheels;
-   /* Pointer to the foot-bot light sensor */
-   CCI_FootBotLightSensor* m_pcLight;
    /* Pointer to the LEDs actuator */
    CCI_LEDsActuator* m_pcLEDs;
    /* Pointer to the omnidirectional camera sensor */
