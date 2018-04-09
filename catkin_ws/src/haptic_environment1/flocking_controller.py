@@ -29,22 +29,26 @@ class Game:
         # self.am_i_at_start = False
         # self.swarm_mass = 5
 
+        print "Testing init..."
         self.action_boundary = 1000
         self.player = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.PLAYERSIZE_X, helper.PLAYERSIZE_Y) )
         self.swarmbot = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.BLOCKSIZE_X, helper.BLOCKSIZE_Y) )
         self.display_surf = pygame.display.set_mode((helper.windowWidth, helper.windowHeight))
         self.ee_state = np.asarray([[0], [0], [0], [0], [0], [0]])
         self.swarm_state = np.asarray([[300] * num_bots,[300] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots])
-        self.swarm_heading = 0
+        self.swarm_center_state = np.asarray([[300] * num_bots,[300] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots])
+        self.swarm_heading = [0] * num_bots
         self.F = [0,0,0]
         self.time0 = time.time()
+        self.swarm_time = [time.time()] * num_bots
         self.gains = {'K_input': 1,
                       'V_input': 0,
                       'K_z_feedback': 1.2,
                       'V_z_feedback': 0.5,
                       'K_output': 0.05,
                       }
-
+        self.tdmin = 0
+        self.tdmax = 100
         pygame.display.set_caption('Use the cursor to move the swarm bot')
         #self.csv = open("/home/cibr-strokerehab/Documents/JointStatesRecording.csv", "w")
 
@@ -59,7 +63,6 @@ class Game:
 
         #self.one_bot_pub = rospy.Publisher("/bot0/haptic", Haptic, queue_size=1)
         self.haptic_pub = rospy.Publisher("/Geomagic/force_feedback", OmniFeedback, queue_size=1)
-        #ToDo need topic group for flocking message
         self.flock_pub = rospy.Publisher("/Flocking", Flocking, queue_size=1)
         self.multi_bot_pub = rospy.Publisher("/Haptic", Haptic, queue_size=1)
 
@@ -67,6 +70,7 @@ class Game:
         pygame.init()
         pygame.font.init()
 
+        print "ROS node, publishers, and subscribers all initialized fine"
     # def get_input_mouse(self):
     #     # Gets input from mouse
     #     pygame.event.pump()
@@ -79,15 +83,16 @@ class Game:
 
 
     def get_input_haptic(self, js):
+        # Test: print ee_state and make sure position seems accurate and velocity changes
         if not rospy.is_shutdown():
+            dt = time.time() - self.time0
+            self.ee_state[3] = (js.position[0] - self.ee_state[0])/dt
             self.ee_state[0] = js.position[0]
+            self.ee_state[4] = (js.position[1] - self.ee_state[1]) / dt
             self.ee_state[1] = js.position[1]
+            self.ee_state[5] = (js.position[2] - self.ee_state[2]) / dt
             self.ee_state[2] = js.position[2]
-            #ToDo manually calculate velocity
-            self.ee_state[3] = js.velocity[0]
-            self.ee_state[4] = js.velocity[1]
-            self.ee_state[5] = js.velocity[2]
-            #ToDo May need to copy(?)
+            self.time0 = time.time()
 
 
     def button_callback(self, button):
@@ -126,29 +131,36 @@ class Game:
     #     self.time0 = time.clock()
 
     def update_from_bot(self, state, bot_no):
+        # Test: print swarm.state, swarmbot center, check that it starts in center and moves from there
+        # Test: does velocity make sense in pixels/second?
+        dt = time.time() - self.swarm_time[bot_no]
         #Gets current position from swarm robot
         x_virtual = self.remap(state.x, -2.5, 2.5, 0, helper.windowWidth)
         y_virtual = self.remap(state.y, 2.5, -2.5, 0, helper.windowHeight)
-
-        #ToDo need to calculate velocity manually
-        x_dot_virtual = self.remap(state.dot_x, -2.5, 2.5, 0, helper.windowWidth)
-        y_dot_virtual = self.remap(state.dot_y, 2.5, -2.5, 0, helper.windowHeight)
+        x_dot_virtual = (x_virtual - self.swarm_state[0,bot_no])/dt
+        y_dot_virtual = (y_virtual - self.swarm_state[1,bot_no])/dt
+        #x_dot_virtual = self.remap(state.dot_x, -2.5, 2.5, 0, helper.windowWidth)
+        #y_dot_virtual = self.remap(state.dot_y, 2.5, -2.5, 0, helper.windowHeight)
         self.swarm_state[:, bot_no] = np.asarray([[x_virtual], [y_virtual], [0], [x_dot_virtual], [y_dot_virtual], [0]])
-        #ToDo calculate swarm centroid here, then update swarmbot.center to point to swarm centroid
-        self.swarmbot.center = (self.swarm_state[0][bot_no], self.swarm_state[1][bot_no])
-        self.swarm_heading = -state.yaw
+        self.swarm_heading[bot_no] = -state.yaw
+        self.swarm_center_state = np.mean(self.swarm_state, 0)
+        self.swarmbot.center = (self.swarm_center_state[0], self.swarm_center_state[1])
+
+        self.swarm_time[bot_no] = time.time()
 
     def update_force_pull(self):
         """
         :return:
         """
-
+        #ToDo what is Jacqui's range of input z values, recorded from Haptic device?
         self.ee_state[0] = self.remap(self.ee_state[0], -150, 150, 0, helper.windowWidth)
         self.ee_state[1] = self.remap(self.ee_state[1], 90, -90, 0, helper.windowHeight)
+        self.ee_state[2] = self.remap(self.ee_state[2], 0, 100, self.tdmin, self.tdmax)
         self.player.center = (self.ee_state[0, 0], self.ee_state[1, 0])
-        #ToDo error should be between ee_State and swarm centroid
-        e = np.subtract(self.ee_state[0:2], self.swarm_state[0:2])
-        #ToDo incorporate velocity back in
+        # Test: Does the error still make sense?
+        e = np.subtract(self.ee_state[0:2], self.swarm_center_state[0:2])
+        #ToDo incorporate velocity back in IF all velocities above make sense
+        #ToDo check ee_state, swarm_state, and swarm_center_state velocities
         #ed = np.subtract(self.ee_state[3:], self.swarm_state[3:])
         d = np.linalg.norm(e)
         if d < self.action_boundary:
@@ -202,8 +214,8 @@ class Game:
         self.display_surf.fill((0, 0, 0))
         #self.maze_draw()
         self.player_draw()
-        #ToDo update Z text below to represent tightness parameter
-        scoretext = "Current Force... X = %.2d, Y = %.2d, Z = %.2d" %(self.F[0], self.F[1], self.F[2])
+        # Test: how does this target distance text look? is it correct?
+        scoretext = "Current target distance: %.1f |-- %.1f --| %.1f" %(self.tdmin, self.ee_state[3], self.tdmax)
         myfont = pygame.font.SysFont('Comic Sans MS', 18)
         textsurface = myfont.render(scoretext, False, helper.WHITE)
         self.display_surf.blit(textsurface, (0,0))
@@ -245,7 +257,10 @@ class Game:
         #     print "Score:", self.score
         pygame.draw.rect(self.display_surf, helper.WHITE, self.player, 0)
         pygame.draw.ellipse(self.display_surf, helper.DARK_BLUE, self.swarmbot, 0)
-        #ToDo draw lines with start_point = swarm centroid and end_point = swarm location (remapped)
+        for bot in range(len(self.swarm_time)):
+            endpoint = (self.swarm_state[0, bot], self.swarm_state[1, bot])
+            pygame.draw.line(self.display_surf, helper.BLUE, self.swarmbot.center, endpoint )
+        # Test: Does this drawing make sense when the little bots are running around?
 
     # def maze_draw(self):
     #     """
