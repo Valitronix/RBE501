@@ -28,15 +28,13 @@ class Game:
         # self.am_i_at_goal = False
         # self.am_i_at_start = False
         # self.swarm_mass = 5
-
-        print "Testing init..."
         self.action_boundary = 1000
         self.player = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.PLAYERSIZE_X, helper.PLAYERSIZE_Y) )
         self.swarmbot = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.BLOCKSIZE_X, helper.BLOCKSIZE_Y) )
         self.display_surf = pygame.display.set_mode((helper.windowWidth, helper.windowHeight))
         self.ee_state = np.asarray([[0], [0], [0], [0], [0], [0]])
         self.swarm_state = np.asarray([[300] * num_bots,[300] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots])
-        self.swarm_center_state = np.asarray([[300] * num_bots,[300] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots])
+        self.swarm_center_state = np.asarray([[300],[300],[0],[0],[0],[0]])
         self.swarm_heading = [0] * num_bots
         self.F = [0,0,0]
         self.time0 = time.time()
@@ -70,7 +68,6 @@ class Game:
         pygame.init()
         pygame.font.init()
 
-        print "ROS node, publishers, and subscribers all initialized fine"
     # def get_input_mouse(self):
     #     # Gets input from mouse
     #     pygame.event.pump()
@@ -83,16 +80,20 @@ class Game:
 
 
     def get_input_haptic(self, js):
-        # Test: print ee_state and make sure position seems accurate and velocity changes
+        # Test: print ee_state and check velocity
         if not rospy.is_shutdown():
-            dt = time.time() - self.time0
-            self.ee_state[3] = (js.position[0] - self.ee_state[0])/dt
-            self.ee_state[0] = js.position[0]
-            self.ee_state[4] = (js.position[1] - self.ee_state[1]) / dt
-            self.ee_state[1] = js.position[1]
-            self.ee_state[5] = (js.position[2] - self.ee_state[2]) / dt
-            self.ee_state[2] = js.position[2]
+            dt = max(time.time() - self.time0, 0.1)
             self.time0 = time.time()
+            temp_0 = self.remap(js.position[0], -150, 150, 0, helper.windowWidth)
+            self.ee_state[3] = (temp_0 - self.ee_state[0])/dt
+            self.ee_state[0] = temp_0
+            temp_1 = self.remap(js.position[1], 90, -90, 0, helper.windowHeight)
+            self.ee_state[4] = (temp_1 - self.ee_state[1]) / dt
+            self.ee_state[1] = temp_1
+            temp_2 = self.remap(js.position[2], -50, 50, self.tdmin, self.tdmax)
+            self.ee_state[2] = min(self.tdmax, max(self.tdmin, temp_2))
+
+
 
 
     def button_callback(self, button):
@@ -141,9 +142,12 @@ class Game:
         y_dot_virtual = (y_virtual - self.swarm_state[1,bot_no])/dt
         #x_dot_virtual = self.remap(state.dot_x, -2.5, 2.5, 0, helper.windowWidth)
         #y_dot_virtual = self.remap(state.dot_y, 2.5, -2.5, 0, helper.windowHeight)
-        self.swarm_state[:, bot_no] = np.asarray([[x_virtual], [y_virtual], [0], [x_dot_virtual], [y_dot_virtual], [0]])
-        self.swarm_heading[bot_no] = -state.yaw
-        self.swarm_center_state = np.mean(self.swarm_state, 0)
+        state_temp = np.zeros(6)
+        state_temp[0] = x_virtual
+        state_temp[1] = y_virtual
+        self.swarm_state[:, bot_no] = state_temp
+        #self.swarm_heading[bot_no] = -state.yaw
+        self.swarm_center_state = np.mean(self.swarm_state, 1)
         self.swarmbot.center = (self.swarm_center_state[0], self.swarm_center_state[1])
 
         self.swarm_time[bot_no] = time.time()
@@ -152,28 +156,30 @@ class Game:
         """
         :return:
         """
-        #ToDo what is Jacqui's range of input z values, recorded from Haptic device?
-        self.ee_state[0] = self.remap(self.ee_state[0], -150, 150, 0, helper.windowWidth)
-        self.ee_state[1] = self.remap(self.ee_state[1], 90, -90, 0, helper.windowHeight)
-        self.ee_state[2] = self.remap(self.ee_state[2], 0, 100, self.tdmin, self.tdmax)
-        self.player.center = (self.ee_state[0, 0], self.ee_state[1, 0])
+        self.player.center = (self.ee_state[0],self.ee_state[1])
+
         # Test: Does the error still make sense?
         e = np.subtract(self.ee_state[0:2], self.swarm_center_state[0:2])
+        print "ee_state", self.ee_state[0:2]
+        print "swarm bot 0", self.swarm_state[:,0]
+        print "swarm_center", self.swarm_center_state
         #ToDo incorporate velocity back in IF all velocities above make sense
         #ToDo check ee_state, swarm_state, and swarm_center_state velocities
         #ed = np.subtract(self.ee_state[3:], self.swarm_state[3:])
         d = np.linalg.norm(e)
+        F = [0,0,0]
         if d < self.action_boundary:
-            F = self.gains['K_input'] * e #+ self.gains['V_input'] * ed
+            F[0:2] = self.gains['K_input'] * e #+ self.gains['V_input'] * ed
         else:
-            F = [0,0,0]
+            pass
 
         #ToDo adjust z force to encourage user back to middle of pre-defined range
         F[2] = self.gains['K_z_feedback'] * self.ee_state[2] + self.gains['V_z_feedback'] * self.ee_state[5]
-        self.F = np.round(F, 2)
+        self.F = F
+        #print "F", self.F
         self.haptic_force(self.F)
 
-        target_distance = self.remap(self.ee_state[2], -50, 50, 50, 100)
+        target_distance = self.ee_state[3]
         self.swarm_force(np.asarray(self.F), 0, 0, target_distance)
 
 
@@ -188,11 +194,10 @@ class Game:
         output_force.y_value = -force_vector[1, 0]
         output_force.z_value = force_vector[2,0]
         flocking_msg = Flocking()
-        flocking_msg.target_distance = target_distance
-        flocking_msg.velocity = velocity
-        flocking_msg.heading = heading
-        #print "robot frame forces:", output_force
-        self.one_bot_pub.publish(output_force)
+        flocking_msg.distance = target_distance
+        flocking_msg.y = velocity
+        flocking_msg.x = heading
+        self.multi_bot_pub.publish(output_force)
         self.flock_pub.publish(flocking_msg)
 
     def haptic_force(self, F):
@@ -201,7 +206,8 @@ class Game:
         haptic_output.force.y = max(min(F[1] * self.gains['K_output'], 3), -3)
         haptic_output.force.z = max(min(-F[2] * self.gains['K_output'], 3), -3)
         haptic_output.lock = [False, False, False]
-        self.haptic_pub.publish(self.haptic_output)
+        #print haptic_output.force
+        #b self.haptic_pub.publish(haptic_output)
 
     def update_GUI(self):
         """
@@ -215,7 +221,8 @@ class Game:
         #self.maze_draw()
         self.player_draw()
         # Test: how does this target distance text look? is it correct?
-        scoretext = "Current target distance: %.1f |-- %.1f --| %.1f" %(self.tdmin, self.ee_state[3], self.tdmax)
+
+        scoretext = "Current target distance: %.1f |-- %.1f --| %.1f" %(self.tdmin, self.ee_state[2], self.tdmax)
         myfont = pygame.font.SysFont('Comic Sans MS', 18)
         textsurface = myfont.render(scoretext, False, helper.WHITE)
         self.display_surf.blit(textsurface, (0,0))
@@ -320,9 +327,10 @@ class Game:
 
 
 if __name__ == "__main__":
-    game = Game()
+    game = Game(4)
     while not rospy.is_shutdown():
         #game.get_input()
         game.update_force_pull()
         #game.update_player()
         game.update_GUI()
+
