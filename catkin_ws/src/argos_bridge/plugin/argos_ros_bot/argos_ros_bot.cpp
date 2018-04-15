@@ -73,7 +73,7 @@ void CArgosRosBot::ControlStep() {
   state.x = sStateReads.Position.GetX();
   state.y = sStateReads.Position.GetY();
   state.z = sStateReads.Position.GetZ();
-  state.dot_x = sStateReads.Velocition;
+  state.dot_x = sStateReads.velocity;
   state.dot_y = 0;
   state.dot_z = 0;
 
