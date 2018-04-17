@@ -30,14 +30,15 @@ class Game:
         # self.swarm_mass = 5
         self.action_boundary = 1000
         self.player = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.PLAYERSIZE_X, helper.PLAYERSIZE_Y) )
-        self.swarmbot = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.BLOCKSIZE_X, helper.BLOCKSIZE_Y) )
+        self.swarmbot = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.BLOCKSIZE_X*0.5, helper.BLOCKSIZE_Y*0.5) )
         self.display_surf = pygame.display.set_mode((helper.windowWidth, helper.windowHeight))
         self.ee_state = np.asarray([[0], [0], [0], [0], [0], [0]])
-        self.swarm_state = np.asarray([[300] * num_bots,[300] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots])
+        self.swarm_state = np.matrix([[300] * num_bots,[300] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots])
         self.swarm_center_state = np.asarray([[300],[300],[0],[0],[0],[0]])
         self.swarm_heading = [0] * num_bots
         self.F = [0,0,0]
         self.time0 = time.time()
+        #self.timedt = time.time()
         self.swarm_time = [time.time()] * num_bots
         self.gains = {'K_input': 1,
                       'V_input': 0,
@@ -113,7 +114,7 @@ class Game:
     #     :param msg: x and y location of the player in the end effector space (actually x and z location in robot frame)
     #     :return:
     #     """
-    #     dt = time.clock() - self.time0
+    #     dt = time.clock() - self.timedt
     #     xdd = np.array(self.F).reshape(3, 1) / self.swarm_mass
     #     B = np.zeros(shape=(6, 3))
     #     A = np.identity(6)
@@ -126,9 +127,9 @@ class Game:
     #     A[1, 4] = dt
     #     A[2, 5] = dt
     #
-    #     self.swarm_state = np.dot(A, self.swarm_state) + np.dot(B, xdd)
+    #     self.swarm_center_state = np.dot(A, self.swarm_center_state) + np.dot(B, xdd)
     #
-    #     self.swarmbot.center = (self.swarm_state[0][0], self.swarm_state[1][0])
+    #     #self.swarmbot.center = (self.swarm_state[0][0], self.swarm_state[1][0])
     #     self.time0 = time.clock()
 
     def update_from_bot(self, state, bot_no):
@@ -142,7 +143,7 @@ class Game:
         y_dot_virtual = (y_virtual - self.swarm_state[1,bot_no])/dt
         #x_dot_virtual = self.remap(state.dot_x, -2.5, 2.5, 0, helper.windowWidth)
         #y_dot_virtual = self.remap(state.dot_y, 2.5, -2.5, 0, helper.windowHeight)
-        state_temp = np.zeros(6)
+        state_temp = np.zeros((6,1))
         state_temp[0] = x_virtual
         state_temp[1] = y_virtual
         self.swarm_state[:, bot_no] = state_temp
@@ -160,9 +161,6 @@ class Game:
 
         # Test: Does the error still make sense?
         e = np.subtract(self.ee_state[0:2], self.swarm_center_state[0:2])
-        print "ee_state", self.ee_state[0:2]
-        print "swarm bot 0", self.swarm_state[:,0]
-        print "swarm_center", self.swarm_center_state
         #ToDo incorporate velocity back in IF all velocities above make sense
         #ToDo check ee_state, swarm_state, and swarm_center_state velocities
         #ed = np.subtract(self.ee_state[3:], self.swarm_state[3:])
@@ -267,6 +265,7 @@ class Game:
         for bot in range(len(self.swarm_time)):
             endpoint = (self.swarm_state[0, bot], self.swarm_state[1, bot])
             pygame.draw.line(self.display_surf, helper.BLUE, self.swarmbot.center, endpoint )
+            pygame.draw.circle(self.display_surf, helper.PEACH, endpoint, int(helper.PLAYERSIZE_X*0.5) )
         # Test: Does this drawing make sense when the little bots are running around?
 
     # def maze_draw(self):

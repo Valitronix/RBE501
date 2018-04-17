@@ -17,6 +17,8 @@ import signal
 class sim_swarm:
     def __init__(self, num_bots):
         self.swarm_state = np.asarray([[0.] * num_bots,[0.] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots,[0] * num_bots])
+        self.swarm_state[0,:] = (np.random.randint(0,51,num_bots) - 25.0)/10.0
+        self.swarm_state[1,:] = (np.random.randint(0,51,num_bots) - 25.0)/10.0
         self.swarm_heading = [0] * num_bots
         rospy.init_node("swarm_simulator")
 
