@@ -85,7 +85,6 @@ void CArgosRosBot::ControlStep() {
   state.yaw = yaw.GetValue();
 
   statePub.publish(state);
-  // cout << "Lening Li is awesome!!!!!"<<endl;
 
   // Wait for any callbacks to be called.
   ros::getGlobalCallbackQueue()->callAvailable(ros::WallDuration(0.1));
@@ -96,7 +95,7 @@ void CArgosRosBot::ControlStep() {
 }
 
 void CArgosRosBot::hapticCallback(const argos_bridge::Haptic& haptic) {
-  cout << "hapticCallback" << GetId() << endl;
+  cout << "hapticCallback c++" << GetId() << endl;
 
   xForce = haptic.x_value;
   yForce = haptic.y_value;
@@ -172,11 +171,6 @@ void CArgosRosBot::SetWheelSpeedsFromVector(const CVector2& c_heading) {
       fLeftWheelSpeed  = fSpeed2;
       fRightWheelSpeed = fSpeed1;
    }
-   // std::cout << "left wheel speed" << '\n';
-   // std::cout << fLeftWheelSpeed << '\n';
-   // std::cout << "right wheel speed" << '\n';
-   // std::cout << fRightWheelSpeed << '\n';
-   /* Finally, set the wheel speeds */
    m_pcWheels->SetLinearVelocity(fLeftWheelSpeed, fRightWheelSpeed);
 }
 
