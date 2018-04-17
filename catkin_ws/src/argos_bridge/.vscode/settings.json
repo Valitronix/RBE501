@@ -2,6 +2,8 @@
     "files.associations": {
         "ratio": "cpp",
         "system_error": "cpp",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "chrono": "cpp",
+        "algorithm": "cpp"
     }
 }

@@ -9,6 +9,7 @@ or wall) then it moves away from it for a fixed period.
 import rospy
 from argos_bridge.msg import State
 from argos_bridge.msg import Haptic
+from argos_bridge.msg import Flocking
 
 class DemoController:
 
@@ -16,6 +17,9 @@ class DemoController:
     xForce = None
     yForce = None
     zForce = None
+    x = None
+    y = None
+    distance = None
 
     def __init__(self):
         self.statePub = rospy.Publisher('State', State, queue_size=1)
@@ -27,7 +31,10 @@ class DemoController:
         self.yForce = -haptic.force.y
         self.zForce = -haptic.force.z
     
-    def flocking_callback(self, flocking):
+    def flocking_callback(self, flocking_msg):
+        self.x = flocking_msg.x;
+        self.y = flocking_msg.y;
+        self.distance = flocking_msg.distance;
         
 
 if __name__ == '__main__':

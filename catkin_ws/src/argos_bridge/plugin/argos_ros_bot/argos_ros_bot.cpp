@@ -114,10 +114,10 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
 
     // Create the subscribers
     stringstream flockingTopic;
-    flockingTopic << "/Flocking";
+    flockingTopic << "/" << GetId() << "/Flocking";
 
     flockingSub = nodeHandle->subscribe(flockingTopic.str(), 1, &CFootBotFlocking::flockingCallback, this);
-
+  
    m_pcWheels = GetActuator<CCI_DifferentialSteeringActuator          >("differential_steering");
    m_pcLEDs   = GetActuator<CCI_LEDsActuator                          >("leds");
    m_pcCamera = GetSensor  <CCI_ColoredBlobOmnidirectionalCameraSensor>("colored_blob_omnidirectional_camera");
@@ -147,12 +147,12 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
 /****************************************/
 /****************************************/
 
-void CFootBotFlocking::flockingCallback(const argos_bridge::Flocking& flocking) {
-  cout << "flockCallback" <<GetId() << endl;
-
-  x = flocking.x;
-  y = flocking.y;
-  distance = flocking.distance;
+void CFootBotFlocking::flockingCallback(const argos_bridge::Flocking& flocking_msg) {
+  cout << "flockingCallback" << endl;
+  ROS_ERROR_STREAM("FUCK you!!!");
+  x = flocking_msg.x;
+  y = flocking_msg.y;
+  distance = flocking_msg.distance;
 
 }
 
@@ -182,9 +182,8 @@ void CFootBotFlocking::ControlStep() {
    Real theta = acos((y-state.y) / (sqrt(pow(x - state.x,2) + pow(y - state.y,2))));
 
    statePub.publish(state);
-
-   SetWheelSpeedsFromVector(1, c_z_angle.GetValue() - theta) + FlockingVector());
-
+   CVector2 c_heading(1, c_z_angle.GetValue() - theta);
+   SetWheelSpeedsFromVector(c_heading + FlockingVector());
 }
 
 /****************************************/

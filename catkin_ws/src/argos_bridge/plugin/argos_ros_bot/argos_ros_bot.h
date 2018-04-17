@@ -137,7 +137,7 @@ public:
     */
    virtual void Destroy() {}
    
-   void flockingCallback(const argos_bridge::Flocking& flocking);
+   void flockingCallback(const argos_bridge::Flocking& flocking_msg);
 
     // flocking subscriber
     ros::Subscriber flockingSub;
