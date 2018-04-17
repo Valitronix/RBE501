@@ -121,7 +121,7 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
    m_pcWheels = GetActuator<CCI_DifferentialSteeringActuator          >("differential_steering");
    m_pcLEDs   = GetActuator<CCI_LEDsActuator                          >("leds");
    m_pcCamera = GetSensor  <CCI_ColoredBlobOmnidirectionalCameraSensor>("colored_blob_omnidirectional_camera");
-   m_pcState = GetSensor<CCI_PositioningSensor>("positioning");
+   m_pcState = GetSensor<CCI_PositioningSensor                        >("positioning");
    /*
     * Parse the config file
     */
@@ -148,8 +148,7 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
 /****************************************/
 
 void CFootBotFlocking::flockingCallback(const argos_bridge::Flocking& flocking_msg) {
-  cout << "flockingCallback" << endl;
-  ROS_ERROR_STREAM("FUCK you!!!");
+  cout << GetId() << "/" <<"flockingCallback c++" << endl;
   x = flocking_msg.x;
   y = flocking_msg.y;
   distance = flocking_msg.distance;
@@ -172,7 +171,6 @@ void CFootBotFlocking::ControlStep() {
    CRadians 	c_z_angle;
    CRadians	c_y_angle;
    CRadians 	c_x_angle;
-   cout << x << endl;
 
    angle.ToEulerAngles(c_z_angle, c_y_angle, c_x_angle);
    x = 10;
@@ -184,6 +182,7 @@ void CFootBotFlocking::ControlStep() {
    statePub.publish(state);
    CVector2 c_heading(1, c_z_angle.GetValue() - theta);
    SetWheelSpeedsFromVector(c_heading + FlockingVector());
+   ros::spinOnce();
 }
 
 /****************************************/

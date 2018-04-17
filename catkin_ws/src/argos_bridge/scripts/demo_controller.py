@@ -14,12 +14,6 @@ from argos_bridge.msg import Flocking
 class DemoController:
 
     statePub = None
-    xForce = None
-    yForce = None
-    zForce = None
-    x = None
-    y = None
-    distance = None
 
     def __init__(self):
         self.statePub = rospy.Publisher('State', State, queue_size=1)
@@ -27,14 +21,10 @@ class DemoController:
         rospy.Subscriber('Flocking', Flocking, self.flocking_callback)
 
     def haptic_callback(self, haptic):
-        self.xForce = -haptic.force.x
-        self.yForce = -haptic.force.y
-        self.zForce = -haptic.force.z
+        print "haptic call back python"
     
     def flocking_callback(self, flocking_msg):
-        self.x = flocking_msg.x;
-        self.y = flocking_msg.y;
-        self.distance = flocking_msg.distance;
+        print "Flocking call back python"
         
 
 if __name__ == '__main__':
