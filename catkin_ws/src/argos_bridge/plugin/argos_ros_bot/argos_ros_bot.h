@@ -45,13 +45,15 @@
  */
 using namespace argos;
 
+
+// Real global_distance;
 /*
  * A controller is simply an implementation of the CCI_Controller class.
  */
 class CFootBotFlocking : public CCI_Controller {
 
 public:
-
+    // Real x, y;
    /*
     * The following variables are used as parameters for
     * turning during navigation. You can set their value
@@ -69,7 +71,7 @@ public:
       {
          NO_TURN = 0, // go straight
          SOFT_TURN,   // both wheels are turning forwards, but at different speeds
-         HARD_TURN    // wheels are turning with opposite speeds
+         HARD_TURN    // w heels are turning with opposite speeds
       } TurningMechanism;
       /*
        * Angular thresholds to change turning state.
@@ -98,7 +100,7 @@ public:
       Real Gain;
       /* Exponent of the Lennard-Jones potential */
       Real Exponent;
-
+      
       void Init(TConfigurationNode& t_node);
       Real GeneralizedLennardJones(Real f_distance);
    };
@@ -116,7 +118,7 @@ public:
     */
    virtual void Init(TConfigurationNode& t_node);
 
-   /*
+   /* 
     * This function is called once every time step.
     * The length of the time step is set in the XML file.
     */

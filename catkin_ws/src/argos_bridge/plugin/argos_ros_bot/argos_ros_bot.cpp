@@ -66,10 +66,12 @@ void CFootBotFlocking::SFlockingInteractionParams::Init(TConfigurationNode& t_no
 /*
  * This function is a generalization of the Lennard-Jones potential
  */
-Real CFootBotFlocking::SFlockingInteractionParams::GeneralizedLennardJones(Real f_distance) {
-   Real fNormDistExp = ::pow(TargetDistance / f_distance, Exponent);
+Real CFootBotFlocking::SFlockingInteractionParams::GeneralizedLennardJones(Real f_distance) { 
+  
+  Real fNormDistExp = ::pow( TargetDistance / f_distance, Exponent);
    return -Gain / f_distance * (fNormDistExp * fNormDistExp - fNormDistExp);
 }
+
 
 /****************************************/
 /****************************************/
@@ -97,7 +99,7 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
     *
     * $ argos3 -q sensors
     *
-    * to have a list of all the possible sensors.
+    * to have a list of aCFootBotFlockingll the possible sensors.
     *
     * NOTE: ARGoS creates and initializes actuators and sensors internally, on the basis of
     *       the lists provided the configuration file at the
@@ -114,7 +116,9 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
 
     // Create the subscribers
     stringstream flockingTopic;
-    flockingTopic << "/" << GetId() << "/Flocking";
+    // flockingTopic << "/" << GetId() << "/Flocking";
+        flockingTopic << "/Flocking";
+
 
     flockingSub = nodeHandle->subscribe(flockingTopic.str(), 1, &CFootBotFlocking::flockingCallback, this);
   
@@ -152,6 +156,11 @@ void CFootBotFlocking::flockingCallback(const argos_bridge::Flocking& flocking_m
   x = flocking_msg.x;
   y = flocking_msg.y;
   distance = flocking_msg.distance;
+  // global_distance=flocking_msg.distance;
+  m_sFlockingParams.TargetDistance = distance;
+  // cout << global_distance << endl;
+  //CFootbotFlocking::distance = flocking_msg.distance;
+  cout << distance << endl;
 
 }
 
@@ -173,14 +182,15 @@ void CFootBotFlocking::ControlStep() {
    CRadians 	c_x_angle;
 
    angle.ToEulerAngles(c_z_angle, c_y_angle, c_x_angle);
-   x = 10;
-   y = 0;
+   x = this->x;
+   y = this->y;
    CVector2 direction_1 = CVector2(x - state.x, y - state.y);
    CVector2 direction_2 = CVector2(0, 1);
    Real theta = acos((y-state.y) / (sqrt(pow(x - state.x,2) + pow(y - state.y,2))));
 
    statePub.publish(state);
    CVector2 c_heading(1, c_z_angle.GetValue() - theta);
+  // CVector2 c_heading(this->x, this->y);
    SetWheelSpeedsFromVector(c_heading + FlockingVector());
    ros::spinOnce();
 }
@@ -224,7 +234,7 @@ CVector2 CFootBotFlocking::FlockingVector() {
           * distance is a good rule of thumb.
           */
          if(sReadings.BlobList[i]->Color == CColor::RED &&
-            sReadings.BlobList[i]->Distance < m_sFlockingParams.TargetDistance * 1.80f) {
+            sReadings.BlobList[i]->Distance < distance * 1.80f) {
             /*
              * Take the blob distance and angle
              * With the distance, calculate the Lennard-Jones interaction force
