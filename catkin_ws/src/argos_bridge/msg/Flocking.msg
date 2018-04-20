@@ -1,3 +1,3 @@
-float32 velocity
-float32 heading
-float32 target_distance
+float32 x
+float32 y
+float32 distance
