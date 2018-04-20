@@ -116,7 +116,6 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
 
     // Create the subscribers
     stringstream flockingTopic;
-    // flockingTopic << "/" << GetId() << "/Flocking";
         flockingTopic << "/Flocking";
 
 
@@ -180,20 +179,19 @@ void CFootBotFlocking::ControlStep() {
 
    CQuaternion angle = sStateReads.Orientation;
    CRadians 	c_z_angle;
-   CRadians	c_y_angle;
+   CRadians	  c_y_angle;
    CRadians 	c_x_angle;
 
    angle.ToEulerAngles(c_z_angle, c_y_angle, c_x_angle);
-   x = this->x;
-   y = this->y;
-   CVector2 direction_1 = CVector2(x - state.x, y - state.y);
-   CVector2 direction_2 = CVector2(0, 1);
-   Real theta = acos((y-state.y) / (sqrt(pow(x - state.x,2) + pow(y - state.y,2))));
+
+   CVector2 target(this->x, this->y);
+   CVector2 pos(state.x, state.y);
 
    statePub.publish(state);
-   CVector2 c_heading(1, c_z_angle.GetValue() - theta);
-  // CVector2 c_heading(this->x, this->y);
-   SetWheelSpeedsFromVector(c_heading + FlockingVector());
+
+  CVector2 me2target(target - pos); 
+  me2target.Rotate(-c_z_angle);
+   SetWheelSpeedsFromVector(me2target + FlockingVector());
    ros::spinOnce();
 }
 

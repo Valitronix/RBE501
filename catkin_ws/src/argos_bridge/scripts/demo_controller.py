@@ -17,11 +17,11 @@ class DemoController:
 
     def __init__(self):
         self.statePub = rospy.Publisher('State', State, queue_size=1)
-        rospy.Subscriber('Haptic', Haptic, self.haptic_callback)
+        # rospy.Subscriber('Haptic', Haptic, self.haptic_callback)
         # rospy.Subscriber('Flocking', Flocking, self.flocking_callback)
 
-    def haptic_callback(self, haptic):
-        print "haptic call back python"
+    # def haptic_callback(self, haptic):
+    #     print "haptic call back python"
     
     # def flocking_callback(self, flocking_msg):
     #     print "Flocking call back python"

@@ -6,7 +6,7 @@
   <!-- ************************* -->
   <framework>
     <system threads="0" />
-    <experiment length="0" ticks_per_second="10" random_seed="124"/>
+    <experiment length="0" ticks_per_second="10" random_seed="12344"/>
 </framework>
 
   <!-- *************** -->
@@ -29,7 +29,7 @@
                        soft_turn_angle_threshold="70"
                        no_turn_angle_threshold="10"
                        max_speed="30" />
-        <flocking target_distance="75"
+        <flocking target_distance="40"
                   gain="1000"
                   exponent="2" />
       </params>

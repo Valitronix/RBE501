@@ -28,7 +28,7 @@ class Game:
         # self.am_i_at_goal = False
         # self.am_i_at_start = False
         # self.swarm_mass = 5
-        self.action_boundary = 1000
+        self.action_boundary = 100
         self.player = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.PLAYERSIZE_X, helper.PLAYERSIZE_Y) )
         self.swarmbot = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.BLOCKSIZE_X*0.5, helper.BLOCKSIZE_Y*0.5) )
         self.display_surf = pygame.display.set_mode((helper.windowWidth, helper.windowHeight))
@@ -46,15 +46,15 @@ class Game:
                       'V_z_feedback': 0.5,
                       'K_output': 0.05,
                       }
-        self.tdmin = 0
-        self.tdmax = 100
+        self.tdmin = 20
+        self.tdmax = 50
         pygame.display.set_caption('Use the cursor to move the swarm bot')
         #self.csv = open("/home/cibr-strokerehab/Documents/JointStatesRecording.csv", "w")
 
         rospy.init_node("python_controller")
 
         for i in range(10):
-            topic_string = "/bot"+str(i)+"/state"
+            topic_string = "/bot"+str(i)+"/State"
             rospy.Subscriber(topic_string, State, self.update_from_bot, (i))
 
         rospy.Subscriber("/Geomagic/end_effector_pose", JointState, self.get_input_haptic)
@@ -137,8 +137,8 @@ class Game:
         # Test: does velocity make sense in pixels/second?
         dt = time.time() - self.swarm_time[bot_no]
         #Gets current position from swarm robot
-        x_virtual = self.remap(state.x, -2.5, 2.5, 0, helper.windowWidth)
-        y_virtual = self.remap(state.y, 2.5, -2.5, 0, helper.windowHeight)
+        x_virtual = self.remap(state.x, -15, 15, 0, helper.windowWidth)
+        y_virtual = self.remap(state.y, 15, -15, 0, helper.windowHeight)
         x_dot_virtual = (x_virtual - self.swarm_state[0,bot_no])/dt
         y_dot_virtual = (y_virtual - self.swarm_state[1,bot_no])/dt
         #x_dot_virtual = self.remap(state.dot_x, -2.5, 2.5, 0, helper.windowWidth)
@@ -178,10 +178,12 @@ class Game:
         self.haptic_force(self.F)
 
         target_distance = self.ee_state[3]
-        self.swarm_force(np.asarray(self.F), 0, 0, target_distance)
+        flocking_x = self.remap(self.ee_state[0], 0, helper.windowWidth, -15, 15)
+        flocking_y = self.remap(self.ee_state[1], 0, helper.windowHeight, 15, -15)
+        self.swarm_force(np.asarray(self.F), flocking_x, flocking_y, target_distance)
 
 
-    def swarm_force(self, F, velocity, heading, target_distance):
+    def swarm_force(self, F, x_cmd, y_cmd, target_distance):
         R_mat = np.matrix([[cos(self.swarm_heading), sin(self.swarm_heading), 0],
                            [-sin(self.swarm_heading), cos(self.swarm_heading), 0],
                            [                       0,                       0, 1]])
@@ -193,19 +195,20 @@ class Game:
         output_force.z_value = force_vector[2,0]
         flocking_msg = Flocking()
         flocking_msg.distance = target_distance
-        flocking_msg.y = velocity
-        flocking_msg.x = heading
+        flocking_msg.y = y_cmd
+        flocking_msg.x = x_cmd
         self.multi_bot_pub.publish(output_force)
         self.flock_pub.publish(flocking_msg)
 
     def haptic_force(self, F):
+        #print "Haptic Force", F
         haptic_output = OmniFeedback()
         haptic_output.force.x = max(min(-F[0] * self.gains['K_output'], 3), -3)
         haptic_output.force.y = max(min(F[1] * self.gains['K_output'], 3), -3)
         haptic_output.force.z = max(min(-F[2] * self.gains['K_output'], 3), -3)
         haptic_output.lock = [False, False, False]
-        #print haptic_output.force
-        #b self.haptic_pub.publish(haptic_output)
+        #print "haptic force", haptic_output.force
+        self.haptic_pub.publish(haptic_output)
 
     def update_GUI(self):
         """
@@ -326,7 +329,7 @@ class Game:
 
 
 if __name__ == "__main__":
-    game = Game(4)
+    game = Game(10)
     while not rospy.is_shutdown():
         #game.get_input()
         game.update_force_pull()
