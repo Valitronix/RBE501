@@ -5,3 +5,4 @@ float32 z
 float32 dot_x
 float32 dot_y
 float32 dot_z
+float32 yaw
