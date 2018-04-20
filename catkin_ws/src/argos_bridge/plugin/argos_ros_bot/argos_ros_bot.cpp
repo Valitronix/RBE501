@@ -151,11 +151,12 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
 /****************************************/
 
 void CFootBotFlocking::flockingCallback(const argos_bridge::Flocking& flocking_msg) {
-  cout << GetId() << "/" <<"flockingCallback c++" << endl;
-  cout << m_sFlockingParams.TargetDistance << endl;
+  // cout << GetId() << "/" <<"flockingCallback c++" << endl;
+  // cout << m_sFlockingParams.TargetDistance << endl;
+  
   x = flocking_msg.x;
-
   y = flocking_msg.y;
+  cout << x << y << endl;
   distance = flocking_msg.distance;
   // global_distance=flocking_msg.distance;
   m_sFlockingParams.TargetDistance = distance;
@@ -191,7 +192,7 @@ void CFootBotFlocking::ControlStep() {
 
   CVector2 me2target(target - pos); 
   me2target.Rotate(-c_z_angle);
-   SetWheelSpeedsFromVector(me2target + FlockingVector());
+   SetWheelSpeedsFromVector(10*me2target + FlockingVector());
    ros::spinOnce();
 }
 
