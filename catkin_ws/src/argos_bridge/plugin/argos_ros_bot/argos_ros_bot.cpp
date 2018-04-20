@@ -153,7 +153,9 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
 
 void CFootBotFlocking::flockingCallback(const argos_bridge::Flocking& flocking_msg) {
   cout << GetId() << "/" <<"flockingCallback c++" << endl;
+  cout << m_sFlockingParams.TargetDistance << endl;
   x = flocking_msg.x;
+
   y = flocking_msg.y;
   distance = flocking_msg.distance;
   // global_distance=flocking_msg.distance;
@@ -218,6 +220,7 @@ CVector2 CFootBotFlocking::FlockingVector() {
    /* Get the camera readings */
    const CCI_ColoredBlobOmnidirectionalCameraSensor::SReadings& sReadings = m_pcCamera->GetReadings();
    /* Go through the camera readings to calculate the flocking interaction vector */
+   cout<<m_sFlockingParams.TargetDistance<<endl;
    if(! sReadings.BlobList.empty()) {
       CVector2 cAccum;
       Real fLJ;
@@ -234,7 +237,7 @@ CVector2 CFootBotFlocking::FlockingVector() {
           * distance is a good rule of thumb.
           */
          if(sReadings.BlobList[i]->Color == CColor::RED &&
-            sReadings.BlobList[i]->Distance < distance * 1.80f) {
+            sReadings.BlobList[i]->Distance < m_sFlockingParams.TargetDistance * 1.80f) {
             /*
              * Take the blob distance and angle
              * With the distance, calculate the Lennard-Jones interaction force
