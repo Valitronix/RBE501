@@ -156,13 +156,13 @@ void CFootBotFlocking::flockingCallback(const argos_bridge::Flocking& flocking_m
   
   x = flocking_msg.x;
   y = flocking_msg.y;
-  cout << x << y << endl;
+  //cout << x << y << endl;
   distance = flocking_msg.distance;
   // global_distance=flocking_msg.distance;
   m_sFlockingParams.TargetDistance = distance;
   // cout << global_distance << endl;
   //CFootbotFlocking::distance = flocking_msg.distance;
-  cout << distance << endl;
+  //cout << distance << endl;
 
 }
 

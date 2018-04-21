@@ -28,7 +28,7 @@ class Game:
         # self.am_i_at_goal = False
         # self.am_i_at_start = False
         # self.swarm_mass = 5
-        self.action_boundary = 100
+        self.action_boundary = 300
         self.player = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.PLAYERSIZE_X, helper.PLAYERSIZE_Y) )
         self.swarmbot = Rect((helper.windowWidth*0.5, helper.windowHeight*0.5, helper.BLOCKSIZE_X*0.5, helper.BLOCKSIZE_Y*0.5) )
         self.display_surf = pygame.display.set_mode((helper.windowWidth, helper.windowHeight))
@@ -37,6 +37,9 @@ class Game:
         self.swarm_center_state = np.asarray([[300],[300],[0],[0],[0],[0]])
         self.swarm_heading = [0] * num_bots
         self.F = [0,0,0]
+        self.flockingx = 0
+        self.flockingy = 0
+        self.target_distance = 20
         self.time0 = time.time()
         #self.timedt = time.time()
         self.swarm_time = [time.time()] * num_bots
@@ -95,10 +98,12 @@ class Game:
             self.ee_state[2] = min(self.tdmax, max(self.tdmin, temp_2))
 
 
-
-
     def button_callback(self, button):
-        pass
+        step = 10
+        if button.grey_button:
+            self.target_distance = min(50, self.target_distance + step)
+        if button.white_button:
+            self.target_distance = max(20, self.target_distance - step)
 
 
     def remap(self, x, in_min, in_max, out_min, out_max):
@@ -177,10 +182,12 @@ class Game:
         #print "F", self.F
         self.haptic_force(self.F)
 
-        target_distance = self.ee_state[3]
+        #target_distance = 5*self.ee_state[3]
+        #print(target_distance)
+        #target_distance = self.target_distance
         flocking_x = self.remap(self.ee_state[0], 0, helper.windowWidth, -15, 15)
         flocking_y = self.remap(self.ee_state[1], 0, helper.windowHeight, 15, -15)
-        self.swarm_force(np.asarray(self.F), flocking_x, flocking_y, target_distance)
+        self.swarm_force(np.asarray(self.F), flocking_x, flocking_y, self.target_distance)
 
 
     def swarm_force(self, F, x_cmd, y_cmd, target_distance):
@@ -197,6 +204,8 @@ class Game:
         flocking_msg.distance = target_distance
         flocking_msg.y = y_cmd
         flocking_msg.x = x_cmd
+        self.flockingx = x_cmd
+        self.flockingy = y_cmd
         self.multi_bot_pub.publish(output_force)
         self.flock_pub.publish(flocking_msg)
 
@@ -205,7 +214,8 @@ class Game:
         haptic_output = OmniFeedback()
         haptic_output.force.x = max(min(-F[0] * self.gains['K_output'], 3), -3)
         haptic_output.force.y = max(min(F[1] * self.gains['K_output'], 3), -3)
-        haptic_output.force.z = max(min(-F[2] * self.gains['K_output'], 3), -3)
+        #haptic_output.force.z = max(min(-F[2] * self.gains['K_output'], 3), -3)
+        haptic_output.force.z = 0
         haptic_output.lock = [False, False, False]
         #print "haptic force", haptic_output.force
         self.haptic_pub.publish(haptic_output)
@@ -223,7 +233,7 @@ class Game:
         self.player_draw()
         # Test: how does this target distance text look? is it correct?
 
-        scoretext = "Current target distance: %.1f |-- %.1f --| %.1f" %(self.tdmin, self.ee_state[2], self.tdmax)
+        scoretext = "Current target distance: %.1f |-- %.1f --| %.1f" %(self.flockingx, self.flockingy, self.target_distance)
         myfont = pygame.font.SysFont('Comic Sans MS', 18)
         textsurface = myfont.render(scoretext, False, helper.WHITE)
         self.display_surf.blit(textsurface, (0,0))
@@ -313,7 +323,7 @@ class Game:
 
     # def update_score(self, assistance=3):
     #
-    #     player_x = math.floor(float(self.player.centerx) / maze_helper.BLOCKSIZE_X)  # This is the (x,y) block in the grid where the center of the player is
+    #     player_x = math.floor(float(self.player.centerx) / maze_helper.BLOCKSIZE_X)  # This is the (x,y) block in the grid where 		the center of the player is
     #     player_y = math.floor(float(self.player.centery) / maze_helper.BLOCKSIZE_Y)
     #     point_index = maze_helper.index_to_cell(self.maze, player_x, player_y)
     #     if maze_helper.check_cell(self.maze, int(point_index)) == 1:
