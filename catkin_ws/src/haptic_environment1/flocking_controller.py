@@ -43,9 +43,9 @@ class Game:
         self.time0 = time.time()
         #self.timedt = time.time()
         self.swarm_time = [time.time()] * num_bots
-        self.gains = {'K_input': 1,
+        self.gains = {'K_input': 0.5,
                       'V_input': 0,
-                      'K_z_feedback': 1.2,
+                      'K_z_feedback': 1.5,
                       'V_z_feedback': 0.5,
                       'K_output': 0.05,
                       }
@@ -151,7 +151,7 @@ class Game:
         state_temp = np.zeros((6,1))
         state_temp[0] = x_virtual
         state_temp[1] = y_virtual
-        self.swarm_state[:, bot_no] = state_temp
+        self.swarm_state[:, bot_no] = state_temp.reshape(6,1)
         #self.swarm_heading[bot_no] = -state.yaw
         self.swarm_center_state = np.mean(self.swarm_state, 1)
         self.swarmbot.center = (self.swarm_center_state[0], self.swarm_center_state[1])
@@ -177,12 +177,12 @@ class Game:
             pass
 
         #ToDo adjust z force to encourage user back to middle of pre-defined range
-        F[2] = self.gains['K_z_feedback'] * self.ee_state[2] + self.gains['V_z_feedback'] * self.ee_state[5]
+        td_error = self.ee_state[2] - np.mean([self.tdmax, self.tdmin])
+        F[2] = self.gains['K_z_feedback'] * td_error # + self.gains['V_z_feedback'] * self.ee_state[5]
         self.F = F
-        #print "F", self.F
         self.haptic_force(self.F)
 
-        #target_distance = 5*self.ee_state[3]
+        self.target_distance = self.ee_state[2]
         #print(target_distance)
         #target_distance = self.target_distance
         flocking_x = self.remap(self.ee_state[0], 0, helper.windowWidth, -15, 15)
@@ -214,8 +214,8 @@ class Game:
         haptic_output = OmniFeedback()
         haptic_output.force.x = max(min(-F[0] * self.gains['K_output'], 3), -3)
         haptic_output.force.y = max(min(F[1] * self.gains['K_output'], 3), -3)
-        #haptic_output.force.z = max(min(-F[2] * self.gains['K_output'], 3), -3)
-        haptic_output.force.z = 0
+        haptic_output.force.z = max(min(-F[2] * self.gains['K_output'], 3), -3)
+        # haptic_output.force.z = 0
         haptic_output.lock = [False, False, False]
         #print "haptic force", haptic_output.force
         self.haptic_pub.publish(haptic_output)
@@ -233,7 +233,7 @@ class Game:
         self.player_draw()
         # Test: how does this target distance text look? is it correct?
 
-        scoretext = "Current target distance: %.1f |-- %.1f --| %.1f" %(self.flockingx, self.flockingy, self.target_distance)
+        scoretext = "Current target distance: %.1f |-- %.1f --| %.1f" %(self.tdmin, self.target_distance, self.tdmax)
         myfont = pygame.font.SysFont('Comic Sans MS', 18)
         textsurface = myfont.render(scoretext, False, helper.WHITE)
         self.display_surf.blit(textsurface, (0,0))
