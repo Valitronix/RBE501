@@ -116,7 +116,7 @@ void CFootBotFlocking::Init(TConfigurationNode& t_node) {
     // Create the topics to publish
     stringstream stateTopic;
     stateTopic << "/" << GetId() << "/State";
-
+    
     statePub = nodeHandle->advertise<State>(stateTopic.str(), 1);
 
     // Create the subscribers
@@ -195,26 +195,23 @@ void CFootBotFlocking::ControlStep() {
   CRadians	c_y_angle;
   CRadians 	c_x_angle;
   angle.ToEulerAngles(c_z_angle, c_y_angle, c_x_angle);
-  // CVector2 temp(((this->y)*3.0)*cos((this->x)),(this->y*3.0)*sin(this->x));
+  CVector2 target(this->x, this->y);
 
-
-
-
-    CVector2 pos(state.x, state.y);
-    CVector2 target (this->x, this->y);
-    statePub.publish(state);
-
-    CVector2 me2target(target - pos);
-    me2target.Rotate(-c_z_angle);
+  CVector2 pos(state.x, state.y);
+  statePub.publish(state);
+  CVector2 me2target(target - pos);
+  me2target.Rotate(-c_z_angle);
   //The below is related to obstacle avoidance
   CVector2 cAccumulator;
   for(size_t i = 0; i < tProxReads.size(); ++i) {
      cAccumulator += CVector2(tProxReads[i].Value, tProxReads[i].Angle);
   }
   cAccumulator /= tProxReads.size();
-  SetWheelSpeedsFromVector( 10*me2target + 5*FlockingVector());
+  SetWheelSpeedsFromVector( 10*me2target + 4*FlockingVector());
+  
   state.dot_x = cAccumulator.GetX();
   state.dot_y = cAccumulator.GetY();
+  cout<<state.dot_x<<" "<< state.dot_y<<endl;
 //  state.dot_z = FlockingVector();
   ros::spinOnce();
 

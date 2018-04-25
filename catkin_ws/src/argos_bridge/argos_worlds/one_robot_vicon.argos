@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<argos-configuration>
+  <!-- ************************* -->
+  <!-- * General configuration * -->
+  <!-- ************************* -->
+  <framework>
+    <system threads="0"/>
+    <experiment length="0" ticks_per_second="10" random_seed="124"/>
+  </framework>
+
+  <!-- *************** -->
+  <!-- * Controllers * -->
+  <!-- *************** -->
+  <controllers>
+    <argos_ros_bot_controller id="argos_ros_bot" library="libargos_ros_bot.so">
+      <actuators>
+        <differential_steering implementation="default"/>
+        <!--<footbot_gripper implementation="default"/>-->
+        <!--<footbot_turret implementation="default"/>-->
+      </actuators>
+      <sensors>
+        <positioning implementation="default"/>
+      </sensors>
+      <params>
+        <wheel_turning hard_turn_angle_threshold="90"
+                       soft_turn_angle_threshold="70"
+                       no_turn_angle_threshold="10"
+                       max_speed="10" />
+        <flocking target_distance="75"
+                  gain="1000"
+                  exponent="2" />
+      </params>
+    </argos_ros_bot_controller>
+  </controllers>
+
+    <!-- ****************** -->
+    <!-- * Loop functions * -->
+    <!-- ****************** -->
+  <loop_functions label="MasterLoopFunctions">
+    <sub_loop_function label="BaseNetworking" />
+  </loop_functions>
+
+
+  <!-- *********************** -->
+  <!-- * Arena configuration * -->
+  <!-- *********************** -->
+  <arena size="5, 5, 1" center="0,0,0.5">
+    <box id="wall_north" size="4,0.1,0.5" movable="false">
+      <body position="0,2,0" orientation="0,0,0"/>
+    </box>
+    <box id="wall_south" size="4,0.1,0.5" movable="false">
+      <body position="0,-2,0" orientation="0,0,0"/>
+    </box>
+    <box id="wall_east" size="0.1,4,0.5" movable="false">
+      <body position="2,0,0" orientation="0,0,0"/>
+    </box>
+    <box id="wall_west" size="0.1,4,0.5" movable="false">
+      <body position="-2,0,0" orientation="0,0,0"/>
+    </box>
+
+  </arena>
+
+  <!-- ******************* -->
+  <!-- * Physics engines * -->
+  <!-- ******************* -->
+    <physics_engines>
+        <tracking>
+            <updaters>
+                <vicon_updater/>
+            </updaters>
+            <assigners>
+                <Khepera default=""/>
+            </assigners>
+        </tracking>
+    </physics_engines>
+
+  <!-- ********* -->
+  <!-- * Media * -->
+  <!-- ********* -->
+  <media>
+    <led id="leds"/>
+  </media>
+
+  <!-- ****************** -->
+  <!-- * Visualization * -->
+  <!-- ****************** -->
+  <visualization>
+    <qt-opengl lua_editor="false"/>
+      <camera>
+        <placement idx="1"
+                   position="0, -2.60355,1.06253"
+                   look_at="0, 0, 0.5"
+                   lens_focal_length="20" />
+      </camera>
+  </visualization>
+</argos-configuration>
